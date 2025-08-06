@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
@@ -32,7 +32,7 @@ app.use(requestLogger);
 app.use(rateLimiter);
 
 // Health check endpoint
-app.get("/health", (req, res) => {
+app.get("/health", (req: Request, res: Response) => {
   res.json({
     status: "ok",
     timestamp: new Date().toISOString(),
@@ -45,7 +45,7 @@ app.get("/health", (req, res) => {
 app.use("/api/screenshot", screenshotController);
 
 // Root endpoint
-app.get("/", (req, res) => {
+app.get("/", (req: Request, res: Response) => {
   res.json({
     name: "Screenshot Backend API",
     version: "1.0.0",

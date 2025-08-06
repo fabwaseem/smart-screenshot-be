@@ -8,6 +8,17 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     procps \
     libxss1 \
+    libgconf-2-4 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libasound2 \
+    libpangocairo-1.0-0 \
+    libatk1.0-0 \
+    libcairo-gobject2 \
+    libgtk-3-0 \
+    libgdk-pixbuf2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Google Chrome Stable and fonts
@@ -23,14 +34,17 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install ALL dependencies (including devDependencies for building)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
 # Build the TypeScript application
 RUN npm run build
+
+# Remove devDependencies to reduce image size
+RUN npm ci --only=production && npm cache clean --force
 
 # Create non-root user for security
 RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
