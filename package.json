@@ -8,8 +8,7 @@
     "dev": "nodemon src/server.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "rimraf dist",
-    "build:clean": "npm run clean && npm run build",
-    "prestart": "npm run build"
+    "build:clean": "npm run clean && npm run build"
   },
   "keywords": [
     "screenshot",
