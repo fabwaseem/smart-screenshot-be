@@ -6,9 +6,11 @@ export class PuppeteerService {
   private browser: Browser | null = null;
   private readonly maxRetries = 3;
   private readonly timeout = 30000;
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
-    this.initializeBrowser();
+    // Don't initialize browser immediately to avoid blocking server startup
+    // this.initializeBrowser();
   }
 
   private async initializeBrowser(): Promise<void> {
@@ -38,7 +40,10 @@ export class PuppeteerService {
 
   private async getBrowser(): Promise<Browser> {
     if (!this.browser || !this.browser.isConnected()) {
-      await this.initializeBrowser();
+      if (!this.initializationPromise) {
+        this.initializationPromise = this.initializeBrowser();
+      }
+      await this.initializationPromise;
     }
     return this.browser!;
   }
@@ -313,6 +318,34 @@ export class PuppeteerService {
     } catch (error) {
       if (page) await page.close().catch(() => {});
       throw error;
+    }
+  }
+
+  async isHealthy(): Promise<boolean> {
+    try {
+      if (!this.browser) {
+        return false; // Browser not initialized yet, but that's ok
+      }
+      return this.browser.isConnected();
+    } catch (error) {
+      console.error("Puppeteer health check failed:", error);
+      return false;
+    }
+  }
+
+  async getStatus(): Promise<{ initialized: boolean; connected: boolean; version?: string }> {
+    try {
+      const initialized = this.browser !== null;
+      const connected = initialized ? this.browser!.isConnected() : false;
+      let version;
+
+      if (connected) {
+        version = await this.browser!.version();
+      }
+
+      return { initialized, connected, version };
+    } catch (error) {
+      return { initialized: false, connected: false };
     }
   }
 }
