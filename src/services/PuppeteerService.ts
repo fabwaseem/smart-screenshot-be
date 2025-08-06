@@ -25,13 +25,20 @@ export class PuppeteerService {
         "--single-process",
       ];
 
+      // Use system Chrome if available, otherwise use bundled Chromium
+      const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
+
       this.browser = await puppeteer.launch({
         headless: true,
         args,
         timeout: this.timeout,
+        executablePath,
       });
 
       console.log("🔧 Puppeteer browser initialized successfully");
+      if (executablePath) {
+        console.log(`🔧 Using Chrome executable: ${executablePath}`);
+      }
     } catch (error) {
       console.error("❌ Failed to initialize Puppeteer browser:", error);
       throw error;

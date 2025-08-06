@@ -98,6 +98,8 @@ A powerful Node.js Express backend service built with TypeScript and Puppeteer f
    PUPPETEER_HEADLESS=true
    PUPPETEER_TIMEOUT=30000
    PUPPETEER_ARGS=--no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usage,--disable-gpu,--no-first-run,--no-zygote,--single-process
+   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+   PUPPETEER_EXECUTABLE_PATH=/usr/bin/google-chrome
    DEFAULT_SCALE_FACTOR=3
    RATE_LIMIT_WINDOW_MS=900000
    RATE_LIMIT_MAX_REQUESTS=100
