@@ -7,6 +7,7 @@
     "start": "node dist/server.js",
     "dev": "nodemon src/server.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:browser-state": "node test-browser-state.js",
     "clean": "rimraf dist",
     "build:clean": "npm run clean && npm run build"
   },

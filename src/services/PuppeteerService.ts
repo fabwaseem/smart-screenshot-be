@@ -1,6 +1,11 @@
 import puppeteer, { Browser, Page, Viewport } from "puppeteer";
 import sharp from "sharp";
-import { ScreenshotRequest, ScreenshotOptions } from "../types";
+import {
+  ScreenshotRequest,
+  ScreenshotOptions,
+  PageData,
+  Cookie,
+} from "../types";
 
 export class PuppeteerService {
   private browser: Browser | null = null;
@@ -34,11 +39,6 @@ export class PuppeteerService {
         timeout: this.timeout,
         executablePath,
       });
-
-      console.log("🔧 Puppeteer browser initialized successfully");
-      if (executablePath) {
-        console.log(`🔧 Using Chrome executable: ${executablePath}`);
-      }
     } catch (error) {
       console.error("❌ Failed to initialize Puppeteer browser:", error);
       throw error;
@@ -55,6 +55,84 @@ export class PuppeteerService {
     return this.browser!;
   }
 
+  private async applyBrowserState(
+    browser: Browser,
+    page: Page,
+    pageData: PageData,
+    url: string
+  ): Promise<void> {
+    try {
+      console.log("🔧 Applying browser state data...");
+      const urlObj = new URL(url);
+
+      // Step 1: Apply cookies first (if provided)
+      if (pageData.cookies && pageData.cookies.length > 0) {
+        // Convert cookies to Puppeteer format
+        const puppeteerCookies = pageData.cookies.map((cookie: Cookie) => ({
+          name: cookie.name,
+          value: cookie.value,
+          domain: cookie.domain,
+          path: cookie.path || "/",
+          httpOnly: cookie.httpOnly || false,
+          secure: cookie.secure || false,
+          sameSite: cookie.sameSite as "Strict" | "Lax" | "None" | undefined,
+          expires: cookie.expirationDate
+            ? Math.floor(cookie.expirationDate)
+            : undefined,
+        }));
+
+        await browser.setCookie(...puppeteerCookies);
+      }
+
+      await page.goto(url, {
+        waitUntil: "domcontentloaded",
+        timeout: this.timeout,
+      });
+
+      // Step 3: Apply localStorage and sessionStorage (if provided)
+      if (pageData.localStorage || pageData.sessionStorage) {
+        // Apply localStorage
+        if (
+          pageData.localStorage &&
+          Object.keys(pageData.localStorage).length > 0
+        ) {
+          await page.evaluate((localStorageData: Record<string, string>) => {
+            try {
+              for (const [key, value] of Object.entries(localStorageData)) {
+                (globalThis as any).localStorage.setItem(key, value);
+              }
+            } catch (error) {
+              console.error("Error setting localStorage:", error);
+            }
+          }, pageData.localStorage);
+        }
+
+        // Apply sessionStorage
+        if (
+          pageData.sessionStorage &&
+          Object.keys(pageData.sessionStorage).length > 0
+        ) {
+          await page.evaluate((sessionStorageData: Record<string, string>) => {
+            try {
+              for (const [key, value] of Object.entries(sessionStorageData)) {
+                (globalThis as any).sessionStorage.setItem(key, value);
+              }
+            } catch (error) {
+              console.error("Error setting sessionStorage:", error);
+            }
+          }, pageData.sessionStorage);
+        }
+
+        // Wait a moment for storage to be fully applied
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
+    } catch (error) {
+      console.error("❌ Error applying browser state:", error);
+      // Don't throw here, let the screenshot continue without browser state
+      console.warn("⚠️ Continuing without browser state data");
+    }
+  }
   async takeScreenshot(request: ScreenshotRequest): Promise<Buffer> {
     let page: Page | null = null;
     let retries = 0;
@@ -81,11 +159,26 @@ export class PuppeteerService {
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         );
 
-        // Navigate to URL
-        await page.goto(request.url, {
-          waitUntil: "networkidle0",
-          timeout: this.timeout,
-        });
+        // Apply browser state data if provided, otherwise navigate normally
+        if (request.pageData) {
+          await this.applyBrowserState(
+            browser,
+            page,
+            request.pageData,
+            request.url
+          );
+          // Do a final navigation with full network wait to ensure everything is loaded
+          await page.goto(request.url, {
+            waitUntil: "networkidle0",
+            timeout: this.timeout,
+          });
+        } else {
+          // Navigate to URL normally if no browser state data
+          await page.goto(request.url, {
+            waitUntil: "networkidle0",
+            timeout: this.timeout,
+          });
+        }
 
         // Wait for additional selector if specified
         if (request.options?.waitForSelector) {
@@ -105,7 +198,6 @@ export class PuppeteerService {
         let screenshotBuffer: Buffer;
 
         switch (request.type) {
-
           case "fullpage":
             screenshotBuffer = await this.takeFullPageScreenshot(page, request);
             break;
@@ -142,7 +234,6 @@ export class PuppeteerService {
 
     throw new Error("Screenshot failed after all retries");
   }
-
 
   private async takeFullPageScreenshot(
     page: Page,
@@ -340,7 +431,11 @@ export class PuppeteerService {
     }
   }
 
-  async getStatus(): Promise<{ initialized: boolean; connected: boolean; version?: string }> {
+  async getStatus(): Promise<{
+    initialized: boolean;
+    connected: boolean;
+    version?: string;
+  }> {
     try {
       const initialized = this.browser !== null;
       const connected = initialized ? this.browser!.isConnected() : false;

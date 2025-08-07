@@ -1,6 +1,26 @@
+export interface Cookie {
+  domain: string;
+  expirationDate?: number;
+  hostOnly?: boolean;
+  httpOnly?: boolean;
+  name: string;
+  path: string;
+  sameSite?: "lax" | "strict" | "none";
+  secure?: boolean;
+  session?: boolean;
+  storeId?: string;
+  value: string;
+}
+
+export interface PageData {
+  cookies?: Cookie[];
+  localStorage?: Record<string, string>;
+  sessionStorage?: Record<string, string>;
+}
+
 export interface ScreenshotRequest {
   url: string;
-  type:"fullpage" | "element" | "area";
+  type: "fullpage" | "element" | "area";
   selector?: string;
   area?: {
     x: number;
@@ -8,6 +28,7 @@ export interface ScreenshotRequest {
     width: number;
     height: number;
   };
+  pageData?: PageData;
   options?: {
     scaleFactor?: number;
     quality?: number;
@@ -38,7 +59,6 @@ export interface ScreenshotResponse {
     details?: any;
   };
 }
-
 
 export interface ScreenshotOptions {
   type?: "png" | "jpeg" | "webp";

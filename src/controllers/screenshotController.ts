@@ -55,7 +55,6 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-
 // Full page screenshot
 router.post("/fullpage", async (req: Request, res: Response): Promise<void> => {
   try {
@@ -94,6 +93,7 @@ router.post("/fullpage", async (req: Request, res: Response): Promise<void> => {
         height: 0,
         timestamp: Date.now(),
       },
+      ...req.body,
     };
 
     res.json(response);
@@ -104,71 +104,6 @@ router.post("/fullpage", async (req: Request, res: Response): Promise<void> => {
       success: false,
       error: {
         message: error.message || "Full page screenshot failed",
-        code: "SCREENSHOT_ERROR",
-      },
-    });
-  }
-});
-
-// Element screenshot
-router.post("/element", async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { url, selector, options } = req.body;
-
-    if (!validateUrl(url)) {
-      res.status(400).json({
-        success: false,
-        error: {
-          message: "Invalid URL provided",
-          code: "INVALID_URL",
-        },
-      });
-      return;
-    }
-
-    if (!selector || typeof selector !== "string") {
-      res.status(400).json({
-        success: false,
-        error: {
-          message: "Valid selector is required for element screenshots",
-          code: "MISSING_SELECTOR",
-        },
-      });
-      return;
-    }
-
-    const request: ScreenshotRequest = {
-      url,
-      type: "element",
-      selector,
-      options: {
-        scaleFactor: parseInt(process.env.DEFAULT_SCALE_FACTOR || "3"),
-        ...options,
-      },
-    };
-
-    const screenshotBuffer = await puppeteerService.takeScreenshot(request);
-    const base64Image = screenshotBuffer.toString("base64");
-
-    const response: ScreenshotResponse = {
-      success: true,
-      data: {
-        image: base64Image,
-        format: request.options?.format || "png",
-        width: 0,
-        height: 0,
-        timestamp: Date.now(),
-      },
-    };
-
-    res.json(response);
-  } catch (error: any) {
-    console.error("Element screenshot error:", error);
-
-    res.status(500).json({
-      success: false,
-      error: {
-        message: error.message || "Element screenshot failed",
         code: "SCREENSHOT_ERROR",
       },
     });
@@ -216,6 +151,7 @@ router.post("/area", async (req: Request, res: Response): Promise<void> => {
         scaleFactor: parseInt(process.env.DEFAULT_SCALE_FACTOR || "3"),
         ...options,
       },
+      ...req.body,
     };
 
     const screenshotBuffer = await puppeteerService.takeScreenshot(request);

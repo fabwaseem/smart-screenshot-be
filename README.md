@@ -357,6 +357,100 @@ Captures a screenshot of a specific element identified by CSS selector.
 }
 ```
 
+---
+
+## 🍪 Browser State Replication
+
+All screenshot endpoints support browser state replication to capture authenticated or personalized content. You can provide cookies, localStorage, and sessionStorage data to replicate the exact browser environment.
+
+### Browser State Format
+
+Add the `pageData` field to any screenshot request:
+
+```json
+{
+  "url": "https://example.com",
+  "pageData": {
+    "cookies": [
+      {
+        "domain": ".example.com",
+        "name": "session_token",
+        "value": "abc123",
+        "path": "/",
+        "secure": true,
+        "httpOnly": true,
+        "sameSite": "lax",
+        "expirationDate": 1785329834
+      }
+    ],
+    "localStorage": {
+      "user_preferences": "{\"theme\":\"dark\"}",
+      "last_visit": "2025-08-06"
+    },
+    "sessionStorage": {
+      "temp_data": "session_value"
+    }
+  },
+  "options": {
+    "waitTime": 2000
+  }
+}
+```
+
+### Cookie Format
+
+Each cookie object supports the following properties:
+
+- `domain` (string, required): Cookie domain (e.g., ".example.com")
+- `name` (string, required): Cookie name
+- `value` (string, required): Cookie value
+- `path` (string, optional): Cookie path (default: "/")
+- `secure` (boolean, optional): Secure flag (default: false)
+- `httpOnly` (boolean, optional): HttpOnly flag (default: false)
+- `sameSite` (string, optional): SameSite policy ("lax", "strict", "none")
+- `expirationDate` (number, optional): Expiration timestamp in seconds
+- `session` (boolean, optional): Session cookie flag
+
+### Storage Format
+
+- `localStorage`: Key-value pairs stored in browser's localStorage
+- `sessionStorage`: Key-value pairs stored in browser's sessionStorage
+
+### Use Cases
+
+1. **Authenticated Screenshots**: Capture screenshots of logged-in user content
+2. **Personalized Content**: Include user preferences and settings
+3. **Session-Specific Data**: Capture temporary session state
+4. **A/B Testing**: Screenshot different variants based on stored flags
+
+### Example: Authenticated GitHub Screenshot
+
+```bash
+curl -X POST http://localhost:3001/api/screenshot/fullpage \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://github.com/settings",
+    "pageData": {
+      "cookies": [
+        {
+          "domain": ".github.com",
+          "name": "user_session",
+          "value": "your_session_token",
+          "path": "/",
+          "secure": true,
+          "httpOnly": true,
+          "sameSite": "lax"
+        }
+      ]
+    },
+    "options": {
+      "waitTime": 3000
+    }
+  }'
+```
+
+---
+
 ## 📝 Usage Examples
 
 ### Using cURL
@@ -555,6 +649,62 @@ async function examples() {
     downloadImage(visibleResult.data.image, "visible-screenshot.png");
   }
 }
+
+// Browser state screenshot with authentication
+async function captureWithBrowserState() {
+  const pageData = {
+    cookies: [
+      {
+        domain: ".github.com",
+        name: "user_session",
+        value: "your_session_token_here",
+        path: "/",
+        secure: true,
+        httpOnly: true,
+        sameSite: "lax" as const,
+      },
+      {
+        domain: ".github.com",
+        name: "logged_in",
+        value: "yes",
+        path: "/",
+        secure: true,
+        httpOnly: true,
+      }
+    ],
+    localStorage: {
+      "user.preferences": JSON.stringify({ theme: "dark", language: "en" }),
+      "last.visited": "2025-08-06",
+    },
+    sessionStorage: {
+      "session.id": "session_12345",
+      "temp.data": "some_temporary_value",
+    },
+  };
+
+  const result = await fetch("http://localhost:3001/api/screenshot/fullpage", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      url: "https://github.com/settings/profile",
+      pageData,
+      options: {
+        waitTime: 3000,
+        viewport: { width: 1920, height: 1080 },
+      },
+    }),
+  });
+
+  const response = await result.json();
+  if (response.success) {
+    console.log("Authenticated screenshot captured!");
+    // Handle the base64 image data
+    return response.data.image;
+  }
+}
+}
 ```
 
 ### Using Python
@@ -620,6 +770,19 @@ class ScreenshotAPI:
         )
         return response.json()
 
+    def capture_with_browser_state(self, url: str, page_data: Dict[str, Any], options: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Capture screenshot with browser state (cookies, localStorage, sessionStorage)"""
+        payload = {"url": url, "pageData": page_data}
+        if options:
+            payload["options"] = options
+
+        response = requests.post(
+            f"{self.base_url}/api/screenshot/fullpage",
+            json=payload,
+            headers={"Content-Type": "application/json"}
+        )
+        return response.json()
+
     def save_screenshot(self, base64_data: str, filename: str):
         """Save base64 screenshot data to file"""
         image_data = base64.b64decode(base64_data)
@@ -668,6 +831,38 @@ def main():
     if result["success"]:
         api.save_screenshot(result["data"]["image"], "example_header.png")
         print(f"Element screenshot saved: {result['data']['width']}x{result['data']['height']}")
+
+    # Capture with browser state (authenticated content)
+    page_data = {
+        "cookies": [
+            {
+                "domain": ".github.com",
+                "name": "user_session",
+                "value": "your_session_token_here",
+                "path": "/",
+                "secure": True,
+                "httpOnly": True,
+                "sameSite": "lax"
+            }
+        ],
+        "localStorage": {
+            "user_preferences": '{"theme":"dark","language":"en"}',
+            "last_visit": "2025-08-06"
+        },
+        "sessionStorage": {
+            "session_id": "session_12345"
+        }
+    }
+
+    result = api.capture_with_browser_state(
+        "https://github.com/settings/profile",
+        page_data,
+        {"waitTime": 3000}
+    )
+
+    if result["success"]:
+        api.save_screenshot(result["data"]["image"], "github_authenticated.png")
+        print(f"Authenticated screenshot saved: {result['data']['width']}x{result['data']['height']}")
 
 if __name__ == "__main__":
     main()
